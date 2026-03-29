@@ -1,0 +1,627 @@
+<!DOCTYPE html><html lang="fr"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title> AutoScanner Pro</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#474747">
+</head><body>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoScanner Pro - Binariser, Recadrer et Convertir JPG en PDF</title>
+    
+    <!-- Balises SEO Classiques -->
+    <meta name="description" content="Application web gratuite pour optimiser, recadrer et binariser vos scans ou photos de cours. Supprimez les quadrillages et convertissez vos images JPG en PDF 100% localement.">
+    <meta name="keywords" content="binariser image en ligne, scanner document, recadrer photo, enlever quadrillage cahier, convertir JPG en PDF, traitement d'image gratuit, nettoyer scan, sans serveur">
+    <meta name="author" content="Seigneur Bison">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph (Réseaux sociaux & Aperçus) -->
+    <meta property="og:title" content="AutoScanner Pro - Binariser et nettoyer vos documents">
+    <meta property="og:description" content="Transformez vos photos de cahiers en PDF parfaits. Nettoyage de l'arrière-plan, binarisation et recadrage automatiques dans votre navigateur.">
+    <meta property="og:type" content="website">
+
+    <!-- Données structurées (JSON-LD) - L'arme absolue pour le référencement IA -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "AutoScanner Pro",
+      "description": "Outil en ligne gratuit permettant de binariser, recadrer automatiquement et convertir des photos de documents (JPG/PNG) en fichiers PDF. Traitement 100% local sans envoi de données.",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "EUR"
+      },
+      "featureList": [
+        "Binarisation d'image (noir et blanc absolu)",
+        "Recadrage de document mathématique",
+        "Suppression automatique de quadrillage",
+        "Conversion de lot JPG vers PDF",
+        "Traitement local sécurisé (Zéro Serveur)"
+      ]
+    }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chargement de jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Chargement de SortableJS pour le Drag & Drop PC/Mobile -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <style>
+        /* Styles pour le toggle switch natif */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #3b82f6;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #3b82f6;
+        }
+        .toggle-checkbox {
+            right: 0;
+            z-index: 1;
+            border-color: #e5e7eb;
+            transition: all 0.3s;
+        }
+        .toggle-label {
+            width: 3rem;
+            height: 1.5rem;
+            background-color: #4b5563;
+            border-radius: 9999px;
+            transition: all 0.3s;
+        }
+        .toggle-circle {
+            width: 1.25rem;
+            height: 1.25rem;
+            background-color: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 0.125rem;
+            left: 0.125rem;
+            transition: all 0.3s;
+        }
+        .toggle-checkbox:checked ~ .toggle-circle {
+            transform: translateX(1.5rem);
+        }
+        
+        /* Spinner animation */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-neutral-900 text-neutral-200 p-4 md:p-8 font-sans">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl font-black text-white tracking-tight mb-2">
+                AutoScanner Pro
+            </h1>
+            <h2 class="text-neutral-400 font-medium text-lg">
+                Binariser, nettoyer et convertir des JPG en PDF (100% Local)
+            </h2>
+        </header>
+
+        <!-- Écran de chargement -->
+        <div id="loadingScreen" class="bg-neutral-800 p-12 rounded-2xl flex flex-col items-center justify-center border border-neutral-700">
+            <svg class="w-12 h-12 text-blue-500 animate-spin mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p id="loadingText" class="text-lg font-bold text-neutral-300">Chargement des matrices mathématiques (OpenCV)...</p>
+        </div>
+
+        <!-- Interface Principale (Cachée au chargement) -->
+        <div id="mainInterface" class="space-y-6 hidden">
+            
+            <!-- Zone de Drop -->
+            <div id="dropzone" class="bg-neutral-800 p-10 rounded-2xl border-2 border-dashed border-neutral-600 text-center relative hover:bg-neutral-750 hover:border-blue-500 transition-all cursor-pointer">
+                <input type="file" id="fileInput" multiple accept="image/jpeg, image/png" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                <svg class="w-16 h-16 text-neutral-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                <h3 class="text-xl font-bold text-white">Ajouter vos scans (JPEG/PNG)</h3>
+                <p class="text-neutral-400 mt-2">Glissez les fichiers ici ou cliquez pour parcourir</p>
+            </div>
+
+            <!-- Barre de contrôle -->
+            <div id="controlBar" class="hidden flex-col gap-4 bg-neutral-800 p-5 rounded-2xl border border-neutral-700">
+                <div class="flex justify-between items-center w-full">
+                    <div class="text-neutral-300 font-semibold flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+                        <span id="pageCount">0 page(s)</span>
+                    </div>
+                    
+                    <!-- Option Quadrillage -->
+                    <label class="flex items-center space-x-3 cursor-pointer group">
+                        <span class="text-sm font-medium text-neutral-300 group-hover:text-white transition-colors">
+                            Détruire le quadrillage
+                        </span>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" id="gridToggle" name="toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" checked/>
+                            <label for="gridToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </label>
+                </div>
+                
+                <button id="processBtn" class="w-full flex justify-center items-center px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg id="processIcon" class="w-6 h-6 mr-3" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                    <svg id="processSpinner" class="w-6 h-6 mr-3 animate-spin hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span id="processBtnText">Traiter et Télécharger</span>
+                </button>
+            </div>
+
+            <!-- Statut en temps réel -->
+            <div id="statusAlert" class="hidden bg-blue-900/50 text-blue-200 p-4 rounded-xl text-center font-bold animate-pulse border border-blue-800">
+                Prêt au traitement.
+            </div>
+
+            <!-- Grille d'images -->
+            <div id="gallery" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <!-- Les images seront injectées ici par JavaScript -->
+            </div>
+
+            <!-- Section SEO (Texte sémantique pour les robots et IA d'indexation) -->
+            <article class="mt-16 pt-8 border-t border-neutral-800 text-neutral-400 text-sm space-y-4">
+                <h3 class="text-white font-bold text-lg mb-4">L'outil en ligne pour nettoyer et binariser vos photos de documents</h3>
+                <p>
+                    <strong>AutoScanner Pro</strong> est une application web gratuite conçue pour <strong>améliorer vos photos de documents</strong>, notes de cours manuscrites et brouillons. Sans utiliser de cloud, transformez n'importe quelle image JPG ou PNG en un document PDF propre et lisible.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div>
+                        <h4 class="text-neutral-200 font-semibold mb-1 flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            Binarisation d'image & Nettoyage
+                        </h4>
+                        <p class="text-neutral-500">L'outil permet de <strong>binariser une image en ligne</strong> avec précision. Il sépare le texte (noir absolu) du fond (blanc pur) grâce à un seuillage adaptatif, idéal pour restaurer des scans ou des photos sombres.</p>
+                    </div>
+                    <div>
+                        <h4 class="text-neutral-200 font-semibold mb-1 flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                            Suppression de quadrillage
+                        </h4>
+                        <p class="text-neutral-500">Une technologie de morphologie mathématique unique qui permet de <strong>retirer l'arrière-plan, les lignes et le quadrillage des cahiers</strong> pour ne conserver que votre écriture manuscrite.</p>
+                    </div>
+                    <div>
+                        <h4 class="text-neutral-200 font-semibold mb-1 flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                            Recadrage Automatique
+                        </h4>
+                        <p class="text-neutral-500">Ne vous souciez plus des bords de table. Notre algorithme détecte les contours de la feuille et redresse la perspective de votre photo automatiquement.</p>
+                    </div>
+                    <div>
+                        <h4 class="text-neutral-200 font-semibold mb-1 flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Convertir JPG en PDF 100% Sécurisé
+                        </h4>
+                        <p class="text-neutral-500">Réorganisez vos images par glisser-déposer et fusionnez-les en un seul fichier PDF. Le traitement s'effectue dans votre navigateur : <strong>zéro fichier envoyé sur nos serveurs</strong>.</p>
+                    </div>
+                </div>
+            </article>
+        </div>
+    </div>
+
+    <!-- Script Principal (Logique et Algorithmes) -->
+    <script>
+        // État global
+        let imagesData = [];
+        let isProcessing = false;
+        let isCvLoaded = false;
+
+        // Références DOM
+        const loadingScreen = document.getElementById('loadingScreen');
+        const mainInterface = document.getElementById('mainInterface');
+        const fileInput = document.getElementById('fileInput');
+        const dropzone = document.getElementById('dropzone');
+        const gallery = document.getElementById('gallery');
+        const controlBar = document.getElementById('controlBar');
+        const pageCount = document.getElementById('pageCount');
+        const gridToggle = document.getElementById('gridToggle');
+        const processBtn = document.getElementById('processBtn');
+        const processBtnText = document.getElementById('processBtnText');
+        const processIcon = document.getElementById('processIcon');
+        const processSpinner = document.getElementById('processSpinner');
+        const statusAlert = document.getElementById('statusAlert');
+
+        // Initialisation OpenCV dynamique
+        function loadOpenCV() {
+            const script = document.createElement('script');
+            script.src = 'https://docs.opencv.org/4.8.0/opencv.js';
+            script.async = true;
+            script.onload = () => {
+                const checkCv = setInterval(() => {
+                    if (window.cv && window.cv.Mat) {
+                        clearInterval(checkCv);
+                        isCvLoaded = true;
+                        loadingScreen.classList.add('hidden');
+                        mainInterface.classList.remove('hidden');
+                    }
+                }, 100);
+            };
+            script.onerror = () => {
+                document.getElementById('loadingText').innerText = "Erreur de chargement d'OpenCV.";
+                document.getElementById('loadingText').classList.add('text-red-500');
+            };
+            document.body.appendChild(script);
+        }
+
+        // Démarrage au chargement de la page
+        window.addEventListener('DOMContentLoaded', loadOpenCV);
+
+        // Gestion des fichiers
+        function handleFiles(files) {
+            if (isProcessing) return;
+            const validFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+            
+            validFiles.forEach(file => {
+                imagesData.push({
+                    id: Math.random().toString(36).substr(2, 9),
+                    file: file,
+                    originalUrl: URL.createObjectURL(file),
+                    processedUrl: null,
+                    status: 'pending' // pending, processing, done, error
+                });
+            });
+            renderUI();
+        }
+
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        // Drag & Drop
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (!isProcessing) dropzone.classList.add('border-blue-500', 'bg-neutral-750');
+        });
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('border-blue-500', 'bg-neutral-750');
+        });
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('border-blue-500', 'bg-neutral-750');
+            if (e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+        });
+
+        // Supprimer une image
+        function removeImage(id) {
+            if (isProcessing) return;
+            imagesData = imagesData.filter(img => img.id !== id);
+            renderUI();
+        }
+
+        // Mise à jour de l'interface DOM
+        function renderUI() {
+            // Mise à jour des contrôles
+            if (imagesData.length > 0) {
+                controlBar.classList.remove('hidden');
+                controlBar.classList.add('flex');
+                pageCount.innerText = `${imagesData.length} page(s)`;
+            } else {
+                controlBar.classList.add('hidden');
+                controlBar.classList.remove('flex');
+            }
+
+            // Reconstruction de la galerie
+            gallery.innerHTML = '';
+            imagesData.forEach((img, index) => {
+                const card = document.createElement('div');
+                // Ajout des curseurs grab/grabbing pour indiquer le glisser-déposer
+                card.className = "bg-neutral-800 rounded-xl overflow-hidden relative group border border-neutral-700 cursor-grab active:cursor-grabbing";
+                card.dataset.id = img.id; // Stockage de l'ID pour la réorganisation
+                
+                const imgSrc = img.status === 'done' ? img.processedUrl : img.originalUrl;
+                const opacityClass = img.status === 'processing' ? 'opacity-30' : 'opacity-100';
+                
+                let overlay = '';
+                if (img.status === 'processing') {
+                    overlay = `<div class="absolute inset-0 flex items-center justify-center"><svg class="w-8 h-8 text-blue-500 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
+                }
+
+                let statusFooter = `<span class="text-neutral-500">Page ${index + 1}</span>`;
+                if (img.status === 'done') {
+                    statusFooter = `<span class="text-green-400 flex items-center"><svg class="w-3 h-3 mr-1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Prêt</span>`;
+                } else if (img.status === 'error') {
+                    statusFooter = `<span class="text-red-500">Erreur</span>`;
+                }
+
+                card.innerHTML = `
+                    <button onclick="removeImage('${img.id}')" ${isProcessing ? 'disabled' : ''} class="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 disabled:hidden">
+                        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                    <div class="relative aspect-[3/4] bg-neutral-900 flex items-center justify-center p-2">
+                        <img src="${imgSrc}" class="max-w-full max-h-full object-contain ${opacityClass}" />
+                        ${overlay}
+                    </div>
+                    <div class="p-2 bg-neutral-800 flex items-center justify-center text-xs font-bold border-t border-neutral-700">
+                        ${statusFooter}
+                    </div>
+                `;
+                gallery.appendChild(card);
+            });
+        }
+
+        function setStatus(text, show = true) {
+            if (show) {
+                statusAlert.classList.remove('hidden');
+                statusAlert.innerText = text;
+            } else {
+                statusAlert.classList.add('hidden');
+            }
+        }
+
+        // Le cœur algorithmique (OpenCV.js)
+        async function processSingleImage(imgObj, shouldRemoveGrid) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        const cv = window.cv;
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, img.width, img.height);
+
+                        let src = cv.imread(canvas);
+                        let gray = new cv.Mat();
+                        let blur = new cv.Mat();
+                        let edges = new cv.Mat();
+
+                        // 1. Détection de la feuille
+                        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+                        cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
+                        cv.Canny(blur, edges, 75, 200);
+
+                        let contours = new cv.MatVector();
+                        let hierarchy = new cv.Mat();
+                        cv.findContours(edges, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+                        let maxArea = 0;
+                        let bestContour = null;
+                        const minAreaToConsider = (src.cols * src.rows) * 0.1;
+
+                        for (let i = 0; i < contours.size(); ++i) {
+                            let cnt = contours.get(i);
+                            let area = cv.contourArea(cnt);
+                            
+                            if (area > maxArea && area > minAreaToConsider) {
+                                let peri = cv.arcLength(cnt, true);
+                                let approx = new cv.Mat();
+                                cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+                                
+                                if (approx.rows === 4) {
+                                    maxArea = area;
+                                    if (bestContour) bestContour.delete();
+                                    bestContour = approx.clone();
+                                }
+                                approx.delete();
+                            }
+                        }
+
+                        let warped = new cv.Mat();
+
+                        // 2. Transformation de perspective
+                        if (bestContour) {
+                            let pts = [];
+                            for (let i = 0; i < 4; i++) {
+                                pts.push({ x: bestContour.data32S[i * 2], y: bestContour.data32S[i * 2 + 1] });
+                            }
+
+                            let sum = pts.map(p => p.x + p.y);
+                            let diff = pts.map(p => p.y - p.x);
+                            
+                            let tl = pts[sum.indexOf(Math.min(...sum))];
+                            let br = pts[sum.indexOf(Math.max(...sum))];
+                            let tr = pts[diff.indexOf(Math.min(...diff))];
+                            let bl = pts[diff.indexOf(Math.max(...diff))];
+
+                            let orderedPts = [tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y];
+                            let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, orderedPts);
+
+                            let widthA = Math.sqrt(Math.pow(br.x - bl.x, 2) + Math.pow(br.y - bl.y, 2));
+                            let widthB = Math.sqrt(Math.pow(tr.x - tl.x, 2) + Math.pow(tr.y - tl.y, 2));
+                            let maxWidth = Math.max(parseInt(widthA), parseInt(widthB));
+
+                            let heightA = Math.sqrt(Math.pow(tr.x - br.x, 2) + Math.pow(tr.y - br.y, 2));
+                            let heightB = Math.sqrt(Math.pow(tl.x - bl.x, 2) + Math.pow(tl.y - bl.y, 2));
+                            let maxHeight = Math.max(parseInt(heightA), parseInt(heightB));
+
+                            let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+                                0, 0,
+                                maxWidth - 1, 0,
+                                maxWidth - 1, maxHeight - 1,
+                                0, maxHeight - 1
+                            ]);
+
+                            let M = cv.getPerspectiveTransform(srcTri, dstTri);
+                            let dsize = new cv.Size(maxWidth, maxHeight);
+                            cv.warpPerspective(src, warped, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
+
+                            srcTri.delete(); dstTri.delete(); M.delete();
+                        } else {
+                            src.copyTo(warped);
+                        }
+
+                        // 3. Binarisation Inversée
+                        let warpedGray = new cv.Mat();
+                        cv.cvtColor(warped, warpedGray, cv.COLOR_RGBA2GRAY, 0);
+                        let binary = new cv.Mat();
+                        
+                        cv.adaptiveThreshold(warpedGray, binary, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY_INV, 31, 15);
+
+                        // 4. Destruction du Quadrillage (Morphologie Mathématique)
+                        if (shouldRemoveGrid) {
+                            let horizontalLines = new cv.Mat();
+                            let verticalLines = new cv.Mat();
+                            let grids = new cv.Mat();
+
+                            let h_size = Math.max(20, Math.floor(warped.cols / 40));
+                            let v_size = Math.max(20, Math.floor(warped.rows / 40));
+
+                            let h_kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(h_size, 1));
+                            cv.morphologyEx(binary, horizontalLines, cv.MORPH_OPEN, h_kernel);
+
+                            let v_kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(1, v_size));
+                            cv.morphologyEx(binary, verticalLines, cv.MORPH_OPEN, v_kernel);
+
+                            cv.add(horizontalLines, verticalLines, grids);
+
+                            let dilate_kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+                            cv.dilate(grids, grids, dilate_kernel);
+
+                            cv.subtract(binary, grids, binary);
+
+                            let close_kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(2, 2));
+                            cv.morphologyEx(binary, binary, cv.MORPH_CLOSE, close_kernel);
+
+                            h_kernel.delete(); v_kernel.delete(); dilate_kernel.delete(); close_kernel.delete();
+                            horizontalLines.delete(); verticalLines.delete(); grids.delete();
+                        }
+
+                        // 5. Inversion finale (Fond blanc)
+                        cv.bitwise_not(binary, binary);
+
+                        cv.imshow(canvas, binary);
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+                        // Nettoyage mémoire rigoureux
+                        src.delete(); gray.delete(); blur.delete(); edges.delete(); contours.delete(); hierarchy.delete();
+                        if (bestContour) bestContour.delete();
+                        warped.delete(); warpedGray.delete(); binary.delete();
+
+                        resolve(dataUrl);
+
+                    } catch (err) {
+                        console.error("Erreur OpenCV:", err);
+                        reject(err);
+                    }
+                };
+                img.onerror = reject;
+                img.src = imgObj.originalUrl;
+            });
+        }
+
+        // L'orchestrateur principal
+        async function processAndDownloadAll() {
+            if (imagesData.length === 0 || isProcessing) return;
+
+            isProcessing = true;
+            processBtn.disabled = true;
+            fileInput.disabled = true;
+            gridToggle.disabled = true;
+            processIcon.classList.add('hidden');
+            processSpinner.classList.remove('hidden');
+            processBtnText.innerText = "L'algorithme travaille...";
+            
+            const shouldRemoveGrid = gridToggle.checked;
+
+            // Phase 1 : Traitement Image par Image
+            for (let i = 0; i < imagesData.length; i++) {
+                if (imagesData[i].status === 'done') continue;
+
+                setStatus(`Calculs matriciels sur la page ${i + 1}/${imagesData.length}...`);
+                imagesData[i].status = 'processing';
+                renderUI();
+
+                try {
+                    // Respiration pour ne pas geler le navigateur
+                    await new Promise(r => setTimeout(r, 50)); 
+                    const resultUrl = await processSingleImage(imagesData[i], shouldRemoveGrid);
+                    imagesData[i].processedUrl = resultUrl;
+                    imagesData[i].status = 'done';
+                } catch (err) {
+                    imagesData[i].status = 'error';
+                }
+                renderUI();
+            }
+
+            // Phase 2 : Génération du PDF
+            setStatus("Assemblage du document PDF final...");
+            await new Promise(r => setTimeout(r, 100));
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'mm', 'a4');
+                const a4Width = 210;
+                const a4Height = 297;
+
+                const readyImages = imagesData.filter(img => img.status === 'done');
+
+                if (readyImages.length === 0) throw new Error("Aucune image n'a pu être traitée.");
+
+                for (let i = 0; i < readyImages.length; i++) {
+                    if (i > 0) doc.addPage();
+                    
+                    const imgObj = new Image();
+                    await new Promise((resolve) => {
+                        imgObj.onload = resolve;
+                        imgObj.src = readyImages[i].processedUrl;
+                    });
+
+                    const ratio = Math.min(a4Width / imgObj.width, a4Height / imgObj.height);
+                    const finalWidth = imgObj.width * ratio;
+                    const finalHeight = imgObj.height * ratio;
+                    
+                    const x = (a4Width - finalWidth) / 2;
+                    const y = (a4Height - finalHeight) / 2;
+
+                    doc.addImage(readyImages[i].processedUrl, 'JPEG', x, y, finalWidth, finalHeight);
+                }
+
+                doc.save("cahier_numerise_pur.pdf");
+                setStatus("Mission accomplie, Seigneur Bison !");
+                setTimeout(() => setStatus('', false), 5000);
+                
+            } catch (err) {
+                alert("Erreur PDF : " + err.message);
+                setStatus("Erreur lors de la génération.", true);
+            }
+
+            // Réinitialisation de l'état
+            isProcessing = false;
+            processBtn.disabled = false;
+            fileInput.disabled = false;
+            gridToggle.disabled = false;
+            processIcon.classList.remove('hidden');
+            processSpinner.classList.add('hidden');
+            processBtnText.innerText = "Traiter et Télécharger";
+            renderUI();
+        }
+
+        processBtn.addEventListener('click', processAndDownloadAll);
+
+        // Initialisation de SortableJS (Drag & Drop)
+        new Sortable(gallery, {
+            animation: 150,
+            ghostClass: 'opacity-30', // Style de l'élément pendant qu'on le déplace
+            delay: 150, // Délai de 150ms essentiel pour les mobiles
+            delayOnTouchOnly: true, // Permet de scroller la page sur mobile sans déclencher le drag
+            filter: 'button', // Empêche le drag si on clique sur le bouton "Supprimer"
+            onEnd: function () {
+                if (isProcessing) return; // Empêcher la réorganisation pendant le calcul
+                
+                // 1. Lire le nouvel ordre depuis le DOM
+                const newOrderIds = Array.from(gallery.children).map(child => child.dataset.id);
+                
+                // 2. Réorganiser notre tableau de données mathématiques
+                imagesData = newOrderIds.map(id => imagesData.find(img => img.id === id));
+                
+                // 3. Rafraîchir l'interface pour mettre à jour la numérotation "Page 1", "Page 2"...
+                renderUI();
+            }
+        });
+
+    </script>
+</body>
+</html>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(e => console.warn("SW:", e));
+  });
+}
+</script></body></html>
